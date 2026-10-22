@@ -5,6 +5,7 @@ psycopg2-binary
 pydantic[email]
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt<4.1  # passlib 1.7.x is incompatible with newer bcrypt releases
 python-multipart
 google-generativeai
 slack-bolt
