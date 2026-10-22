@@ -8,7 +8,10 @@ load_dotenv()
 
 class Settings:
     # Database configuration
-    DATABASE_URL = "postgresql://postgres:1234@localhost:5432/gaming_prototype"
+    DATABASE_URL = os.getenv(
+        "DATABASE_URL",
+        "postgresql+psycopg2://postgres:postgres@localhost:5432/gaming_prototype",
+    )
     
     # API configuration
     API_HOST = "0.0.0.0"
