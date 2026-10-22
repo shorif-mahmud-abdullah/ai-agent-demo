@@ -1,164 +1,93 @@
-# Gaming Platform with AI Agent
+# Gaming Platform API with an AI Support Agent
 
-A modular gaming platform API with integrated AI customer support agent built with FastAPI and Google Gemini AI.
+[![CI](https://github.com/shorif-mahmud-abdullah/ai-agent-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/shorif-mahmud-abdullah/ai-agent-demo/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688)
 
-## Project Structure
+A FastAPI backend for a gaming platform (accounts, balances, transactions, KYC status, FAQs, support tickets) with an AI customer-support agent on top. The agent detects what the player is asking, pulls the player's real data and matching FAQs from the API, and asks Google Gemini to write a grounded answer.
 
-```
-ai_agent_demo/
-├── src/                          # Main source code directory
-│   ├── __init__.py
-│   ├── main.py                   # FastAPI application entry point
-│   ├── config/                   # Configuration management
-│   │   ├── __init__.py
-│   │   └── settings.py           # Application settings
-│   ├── database/                 # Database layer
-│   │   ├── __init__.py
-│   │   ├── connection.py         # Database connection & session
-│   │   └── models.py             # SQLAlchemy models
-│   ├── schemas/                  # Pydantic schemas
-│   │   ├── __init__.py
-│   │   ├── user.py               # User-related schemas
-│   │   ├── transaction.py        # Transaction schemas
-│   │   ├── support.py            # Support & FAQ schemas
-│   │   └── ai_agent.py           # AI agent schemas
-│   ├── services/                 # Business logic layer
-│   │   ├── __init__.py
-│   │   ├── user_service.py       # User business logic
-│   │   └── support_service.py    # Support business logic
-│   ├── ai/                       # AI Agent components
-│   │   ├── __init__.py
-│   │   ├── gaming_ai_agent.py    # Main AI agent orchestrator
-│   │   ├── intent_detector.py    # Intent detection logic
-│   │   ├── context_manager.py    # Context gathering & management
-│   │   └── response_generator.py # AI response generation
-│   ├── api/                      # API layer
-│   │   ├── __init__.py
-│   │   └── routes/               # API route handlers
-│   │       ├── __init__.py
-│   │       ├── users.py          # User API endpoints
-│   │       ├── support.py        # Support API endpoints
-│   │       └── ai_agent.py       # AI agent API endpoints
-│   └── utils/                    # Utility functions
-│       ├── __init__.py
-│       └── data_seeder.py        # Database seeding utilities
-├── main_new.py                   # New modular main entry point
-├── ai_agent_new.py               # New modular AI agent entry point
-├── main.py                       # Original monolithic file (kept for reference)
-├── ai_agent.py                   # Original monolithic file (kept for reference)
-├── requirements.txt              # Python dependencies
-├── .env                          # Environment variables
-└── README.md                     # This file
+This is a personal prototype built to practise a layered backend design and LLM-with-context patterns. It uses seeded dummy data, not real users.
+
+## How the AI agent works
+
+```mermaid
+flowchart LR
+    Q[Player question] --> I[IntentDetector<br/>keyword rules]
+    I --> C[ContextManager]
+    C -->|user data, balance,<br/>KYC, transactions| API[(Backend API<br/>+ PostgreSQL)]
+    C -->|FAQ search| API
+    C --> G[ResponseGenerator<br/>Google Gemini]
+    G --> A[Answer + intent + confidence]
 ```
 
-## Architecture Benefits
+1. **IntentDetector** maps the question to an intent such as `balance_check`, `withdrawal`, `kyc_status` or `human_request`.
+2. **ContextManager** fetches only the data that intent needs (for example the balance for `balance_check`) plus matching FAQs.
+3. **ResponseGenerator** sends the question and that context to Gemini, so answers are based on the player's actual account data.
+4. **GamingAIAgent** orchestrates the three steps and keeps per-conversation history.
 
-### 1. **Separation of Concerns**
-- **Database Layer**: Models and connection management
-- **Service Layer**: Business logic and data operations
-- **API Layer**: HTTP request/response handling
-- **AI Layer**: AI-specific components and logic
-- **Configuration**: Centralized settings management
+## Project structure
 
-### 2. **Modularity**
-- Each component has a single responsibility
-- Easy to test individual components
-- Components can be developed independently
-- Clear dependencies between layers
+```
+src/
+├── main.py            # FastAPI app, routers, startup seeding
+├── config/            # settings (env-driven)
+├── database/          # SQLAlchemy engine, session, models
+├── schemas/           # Pydantic request/response models
+├── services/          # business logic (auth, users, support)
+├── ai/                # intent detection, context, Gemini response, orchestrator
+├── api/routes/        # auth, users, support, ai_agent endpoints
+├── auth/              # JWT dependencies
+└── utils/             # dummy-data seeder
+tests/                 # pytest suite (no database needed)
+```
 
-### 3. **Scalability**
-- Easy to add new features without affecting existing code
-- Components can be scaled independently
-- Database operations are abstracted through services
-- AI components are loosely coupled
+## Quick start
 
-### 4. **Maintainability**
-- Code is organized logically
-- Easy to locate and modify specific functionality
-- Clear import structure
-- Consistent naming conventions
-
-## Key Components
-
-### AI Agent Architecture
-The AI agent is now split into specialized components:
-
-1. **IntentDetector**: Analyzes user queries to determine intent
-2. **ContextManager**: Gathers relevant context from APIs and databases
-3. **ResponseGenerator**: Uses Gemini AI to generate contextual responses
-4. **GamingAIAgent**: Orchestrates all AI components
-
-### Service Layer
-Business logic is separated into services:
-- **UserService**: User management and data operations
-- **SupportService**: FAQ and ticket management
-
-### API Layer
-RESTful endpoints organized by domain:
-- **Users API**: User-related endpoints
-- **Support API**: FAQ and ticket endpoints
-- **AI Agent API**: Chat and AI interaction endpoints
-
-## Running the Application
-
-### Using the New Modular Structure
+You need Python 3.12+, a PostgreSQL database and a Gemini API key.
 
 ```bash
-# Run the main application
-python main_new.py
+# 1. PostgreSQL (one-liner with Docker)
+docker run -d --name gaming-db -p 5432:5432 \
+  -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=gaming_prototype postgres:16
 
-# Or run directly with uvicorn
-uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+# 2. Install
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Configure
+cp .env.example .env        # then add your GEMINI_API_KEY and a random SECRET_KEY
+
+# 4. Run
+uvicorn src.main:app --reload
 ```
 
-### Testing the AI Agent
+Open http://localhost:8000/docs for the interactive API docs. On first start the app creates the tables and seeds dummy users, transactions and FAQs.
+
+## Main endpoints
+
+| Area | Endpoints |
+|---|---|
+| Auth | `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me` (JWT bearer tokens) |
+| Users | `GET /api/users/{id}`, `/api/users/{id}/balance`, `/api/users/{id}/transactions`, `/api/users/{id}/kyc-status`, plus `/api/users/me/...` variants for the logged-in user |
+| Support | `GET /api/faqs`, `GET /api/faqs/search`, `POST /api/support-tickets`, `GET /api/support-tickets/{id}` |
+| AI agent | `POST /api/chat` (authenticated), `POST /api/chat/public` |
+| Ops | `GET /health` |
+
+## Tests
 
 ```bash
-# Test the AI agent independently
-python ai_agent_new.py
+pip install -r requirements-dev.txt
+python -m pytest -q
 ```
 
-## Environment Setup
+The suite covers intent detection, password hashing and JWT creation, and the root and health endpoints. It runs without PostgreSQL or a Gemini key, and GitHub Actions runs it on every push.
 
-Make sure your `.env` file contains:
+## Known limitations
 
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL_NAME=gemini-pro
-SECRET_KEY=your_secret_key_here
-```
+- Intent detection is keyword-based and the first matching intent wins, so an ambiguous question such as "add money" is read as a balance check. An LLM or embedding classifier would be the next step.
+- Conversation history is kept in memory, not in the database.
+- Dummy data only; there are no real payments.
 
-## API Documentation
+## Tech
 
-Once running, visit:
-- **API Documentation**: http://localhost:8000/docs
-- **Alternative Docs**: http://localhost:8000/redoc
-- **Health Check**: http://localhost:8000/health
-
-## Migration from Old Structure
-
-The original `main.py` and `ai_agent.py` files are preserved for reference. The new structure provides:
-
-1. **Better Organization**: Code is logically separated
-2. **Easier Testing**: Components can be tested in isolation
-3. **Improved Maintainability**: Changes are localized to specific modules
-4. **Enhanced Scalability**: New features can be added without affecting existing code
-
-## Development Guidelines
-
-1. **Follow the layered architecture**: API → Service → Database
-2. **Keep AI components modular**: Each AI component should have a single responsibility
-3. **Use dependency injection**: Pass dependencies through constructors
-4. **Maintain clear interfaces**: Use Pydantic schemas for data validation
-5. **Add proper error handling**: Each layer should handle its own errors appropriately
-
-## Future Enhancements
-
-The modular structure makes it easy to add:
-- Authentication middleware
-- Caching layers
-- Message queues for async processing
-- Additional AI models or providers
-- Monitoring and logging components
-- API rate limiting
-- Database migrations
+FastAPI · SQLAlchemy · PostgreSQL · Pydantic · JWT (python-jose) · passlib/bcrypt · Google Gemini · pytest · GitHub Actions
